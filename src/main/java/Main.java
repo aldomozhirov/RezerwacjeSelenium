@@ -13,7 +13,10 @@ import java.util.stream.Collectors;
 
 public class Main {
 
-    private static final String TERMS_PAGE_URL_TEMPLATE = "http://rezerwacje.duw.pl/reservations/pol/queues/%d/%d";
+    private static final String LOGIN = "aldomozhirov@gmail.com";
+    private static final String PASSWORD = "";
+    private static final String LOCATION = "Wrocław";
+    private static final String DATE_TO_BOOK = "2020-03-28";
 
     public static void main(String[] args) throws Exception {
 
@@ -25,17 +28,17 @@ public class Main {
 
         openReservationPage(driver);
 
-        login(driver, "aldomozhirov@gmail.com", "VrvCIDO#");
+        login(driver, LOGIN, PASSWORD);
 
-        selectLocation(driver, "Wrocław");
+        selectLocation(driver, LOCATION);
 
-        openTermsPageForService(driver, "Wniosek o legalizację pobytu");
+        openTermsPageForService(driver, ServiceType.WNIOSEK_O_LEGALIZACJĘ_POBYTU);
 
-        selectMonth(driver, "Marzec");
+        selectMonth(driver, 3);
 
         while (true) {
             List<WebElement> terms;
-            while ((terms = getTermsByDate(driver, "2020-03-28")).isEmpty()) {
+            while ((terms = getTermsByDate(driver, DATE_TO_BOOK)).isEmpty()) {
                 System.out.println("No available dates");
             }
 
@@ -80,37 +83,16 @@ public class Main {
         ))));
     }
 
-    private static void openTermsPageForService(WebDriver driver, String service) throws Exception {
-
-        // Wniosek o legalizację pobytu - http://rezerwacje.duw.pl/reservations/pol/queues/17/1
-        // Oddział LP I dni rezerwacji -  wt 13-15 i czw 13-15 - http://rezerwacje.duw.pl/reservations/pol/queues/103/4
-        // Oddział LP II dni rezerwacji -  wt 13-15 i czw 13-15 - http://rezerwacje.duw.pl/reservations/pol/queues/62/6
-        // Dyrektor Wydziału rezerwacje - wt 10-12 i śr 16-16.30 - http://rezerwacje.duw.pl/reservations/pol/queues/500000019/25
-
-        String url;
-        switch (service) {
-            case "Wniosek o legalizację pobytu":
-                url = String.format(TERMS_PAGE_URL_TEMPLATE, 17, 1);
-            break;
-            case "Oddział LP I dni rezerwacji":
-                url = String.format(TERMS_PAGE_URL_TEMPLATE, 103, 4);
-                break;
-            case "Oddział LP II dni rezerwacji":
-                url = String.format(TERMS_PAGE_URL_TEMPLATE, 62, 6);
-                break;
-            case "Dyrektor Wydziału rezerwacje":
-                url = String.format(TERMS_PAGE_URL_TEMPLATE, 500000019, 25);
-                break;
-            default:
-                throw new Exception("No such service");
-        }
+    private static void openTermsPageForService(WebDriver driver, ServiceType service) {
+        String url = String.format(Constants.TERMS_PAGE_URL_TEMPLATE, service.val1, service.val2);
         driver.get(url);
-
     }
 
-    private static void selectMonth(WebDriver driver, String month) throws InterruptedException {
+    private static void selectMonth(WebDriver driver, int month) throws InterruptedException {
         WebElement next = driver.findElement(By.cssSelector("i.fa.fa-chevron-circle-right"));
-        while (!driver.findElement(By.className("calendar-month-header")).getText().contains(month)) {
+        while (!driver
+                .findElement(By.className("calendar-month-header"))
+                .getText().contains(Constants.MONTHS.get(month))) {
             next.click();
             // TODO wait until calendar loads
             Thread.sleep(1000);
