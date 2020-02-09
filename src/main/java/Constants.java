@@ -3,6 +3,8 @@ import java.util.Map;
 
 public class Constants {
 
+    public static final String RESERVATION_PAGE_URL = "http://rezerwacje.duw.pl/reservations/pol";
+
     public static final String TERMS_PAGE_URL_TEMPLATE = "http://rezerwacje.duw.pl/reservations/pol/queues/%d/%d";
 
     public static final Map<Integer, String> MONTHS = new HashMap<Integer, String>() {{

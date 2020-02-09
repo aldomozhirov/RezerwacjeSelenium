@@ -4,27 +4,32 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.logging.LogEntries;
+import org.openqa.selenium.logging.LogEntry;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class Main {
 
     private static final String LOGIN = "aldomozhirov@gmail.com";
-    private static final String PASSWORD = "";
+    private static final String PASSWORD = "VrvCIDO#";
     private static final String LOCATION = "Wrocław";
-    private static final String DATE_TO_BOOK = "2020-03-28";
+    private static final String DATE_TO_BOOK = "2020-03-30";
+    private static final ServiceType SERVICE_TYPE = ServiceType.WNIOSEK_O_LEGALIZACJĘ_POBYTU;
 
     public static void main(String[] args) throws Exception {
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--start-maximized");
         options.setExperimentalOption("detach", true);
-        System.setProperty("webdriver.chrome.driver", "/home/adomozhirov/Videos/chromedriver_linux64/chromedriver");
+        System.setProperty("webdriver.chrome.driver", "C:\\Users\\aldom\\Desktop\\chromedriver.exe");
         WebDriver driver = new ChromeDriver(options);
+        Date dateToBook = Utils.getDate(DATE_TO_BOOK);
 
         openReservationPage(driver);
 
@@ -32,9 +37,9 @@ public class Main {
 
         selectLocation(driver, LOCATION);
 
-        openTermsPageForService(driver, ServiceType.WNIOSEK_O_LEGALIZACJĘ_POBYTU);
+        openTermsPageForService(driver, SERVICE_TYPE);
 
-        selectMonth(driver, 3);
+        selectMonth(driver, Utils.getMonthNumber(dateToBook));
 
         while (true) {
             List<WebElement> terms;
@@ -46,14 +51,23 @@ public class Main {
                     .collect(Collectors.joining(", "));
             System.out.println("Available time terms: " + timeTermsString);
 
-            terms.get(0).click();
-            Thread.sleep(10000);
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            js.executeAsyncScript("lock", "2020-02-20 13:00:00");
+            Thread.sleep(1000);
+            List<LogEntry> logEntries = driver.manage().logs().get("browser").getAll();
+            for(LogEntry l : logEntries) {
+                System.out.println(l.getMessage());
+            }
+
+            return;
+            //terms.get(0).click();
+            //Thread.sleep(10000);
         }
 
     }
 
     private static void openReservationPage(WebDriver driver) {
-        driver.get("http://rezerwacje.duw.pl/reservations/pol");
+        driver.get(Constants.RESERVATION_PAGE_URL);
     }
 
     private static void login(WebDriver driver, String login, String password) {
@@ -106,28 +120,6 @@ public class Main {
         WebElement dateContent = driver.findElement(By.id("dateContent"));
         return dateContent.findElement(By.className("smartColumns")).findElements(By.tagName("li"));
     }
-
-    /*private static List<WebElement> getTimeTermsByDate(WebDriver driver, String service, String date) throws Exception {
-        String url;
-        switch (service) {
-            case "Wniosek o legalizację pobytu":
-                url = String.format(TERMS_PAGE_URL_TEMPLATE, 17, 1, date);
-                break;
-            case "Oddział LP I dni rezerwacji":
-                url = String.format(TERMS_PAGE_URL_TEMPLATE, 103, 4, date);
-                break;
-            case "Oddział LP II dni rezerwacji":
-                url = String.format(TERMS_PAGE_URL_TEMPLATE, 62, 6, date);
-                break;
-            case "Dyrektor Wydziału rezerwacje":
-                url = String.format(TERMS_PAGE_URL_TEMPLATE, 500000019, 25, date);
-                break;
-            default:
-                throw new Exception("No such service");
-        }
-        driver.get(url);
-        return driver.findElement(By.className("smartColumns")).findElements(By.tagName("li"));
-    }*/
 
     private static void waitForPageToLoad(WebDriver driver) {
         ExpectedCondition<Boolean> pageLoadCondition = driver1 -> ((JavascriptExecutor) driver1).executeScript("return document.readyState").equals("complete");
