@@ -21,11 +21,11 @@ public class Main {
     private static final String LOGIN = "aldomozhirov@gmail.com";
     private static final String PASSWORD = "";
     private static final String LOCATION = "Wrocław";
-    private static final String DATE_TO_BOOK = "2020-03-30";
+    private static final String DATE_TO_BOOK = "2020-03-31";
     private static final ServiceType SERVICE_TYPE = ServiceType.WNIOSEK_O_LEGALIZACJĘ_POBYTU;
-    private static final String NAME_AND_SURNAME = "Alena Domozhirova";
-    private static final String DATE_OF_BIRTH = "1996-01-22";
-    private static final String PHONE_NUMBER = "888719445";
+    private static final String NAME_AND_SURNAME = "Aleksei Domozhirov";
+    private static final String DATE_OF_BIRTH = "1996-02-22";
+    private static final String PHONE_NUMBER = "728159050";
     private static final String SUBMISSION_DATE = "2019-03-14";
     private static final String REFERENCE_NUMBER = "32285186";
 
@@ -49,11 +49,20 @@ public class Main {
 
     private static Map<String,String> getFormData() {
         Map<String, String> formData = new HashMap<>();
-        formData.put("nazwisko i imię", NAME_AND_SURNAME);
-        formData.put("data urodzenia/Date of birth", DATE_OF_BIRTH);
-        formData.put("NUMER TELEFONU KONTAKTOWEGO", PHONE_NUMBER);
-        formData.put("sygnatura sprawy lub nazwisko inspektora prowadzącego postępowanie", REFERENCE_NUMBER);
-        formData.put("wpisz datę złożenia wniosku (przesłania drogą pocztową)", SUBMISSION_DATE);
+        switch (SERVICE_TYPE) {
+            case WNIOSEK_O_LEGALIZACJĘ_POBYTU:
+                // TODO Add dorm data for application
+                break;
+            case ODDZIAŁ_LP_I_DNI_REZERWACJI:
+            case ODDZIAŁ_LP_II_DNI_REZERWACJI:
+            case DYREKTOR_WYDZIAŁU_REZERWACJE:
+                formData.put("nazwisko i imię", NAME_AND_SURNAME);
+                formData.put("data urodzenia/Date of birth", DATE_OF_BIRTH);
+                formData.put("NUMER TELEFONU KONTAKTOWEGO", PHONE_NUMBER);
+                formData.put("sygnatura sprawy lub nazwisko inspektora prowadzącego postępowanie", REFERENCE_NUMBER);
+                formData.put("wpisz datę złożenia wniosku (przesłania drogą pocztową)", SUBMISSION_DATE);
+            break;
+        }
         return formData;
     }
 
@@ -171,7 +180,7 @@ public class Main {
                     termLocked = true;
                     break;
                 } else {
-                    System.out.println("Failed to lock the term " + termString);
+                    System.err.println("Failed to lock the term " + termString);
                     terms = getAvailableTerms(driver);
                 }
             }
@@ -184,7 +193,7 @@ public class Main {
                 WebElement element = driver.findElement(By.name(entry.getKey()));
                 element.sendKeys(entry.getValue());
             } catch (Exception e) {
-                System.out.println(String.format("Cannot fill the field '%s'", entry.getKey()));
+                System.err.println(String.format("Cannot fill the field '%s'", entry.getKey()));
             }
         }
     }
