@@ -5,10 +5,10 @@ public enum ServiceType {
     // Oddział LP II dni rezerwacji -  wt 13-15 i czw 13-15 - http://rezerwacje.duw.pl/reservations/pol/queues/62/6
     // Dyrektor Wydziału rezerwacje - wt 10-12 i śr 16-16.30 - http://rezerwacje.duw.pl/reservations/pol/queues/500000019/25
 
-    WNIOSEK_O_LEGALIZACJĘ_POBYTU(17, 1),
-    ODDZIAŁ_LP_I_DNI_REZERWACJI(103, 4),
-    ODDZIAŁ_LP_II_DNI_REZERWACJI(62, 6),
-    DYREKTOR_WYDZIAŁU_REZERWACJE(500000019, 25);
+    REQUEST_FOR_LEGALIZATION_OF_RESIDENCE(17, 1),
+    LP_I_DEPARTMENT(103, 4),
+    LP_II_DEPARTMENT(62, 6),
+    HEAD_OF_DEPARTMENT(500000019, 25);
 
     int val1, val2;
 

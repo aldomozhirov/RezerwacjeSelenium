@@ -11,7 +11,7 @@ public class Utils {
         return simpleDateFormat.parse(dateString);
     }
 
-    public static int getMonthNumber(Date date) throws ParseException {
+    public static int getMonthNumber(Date date) {
         LocalDate localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
         return localDate.getMonthValue();
     }

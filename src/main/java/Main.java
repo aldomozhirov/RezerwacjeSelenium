@@ -22,7 +22,7 @@ public class Main {
     private static final String PASSWORD = "";
     private static final String LOCATION = "Wrocław";
     private static final String DATE_TO_BOOK = "2020-03-31";
-    private static final ServiceType SERVICE_TYPE = ServiceType.WNIOSEK_O_LEGALIZACJĘ_POBYTU;
+    private static final ServiceType SERVICE_TYPE = ServiceType.REQUEST_FOR_LEGALIZATION_OF_RESIDENCE;
     private static final String NAME_AND_SURNAME = "Aleksei Domozhirov";
     private static final String DATE_OF_BIRTH = "1996-02-22";
     private static final String PHONE_NUMBER = "728159050";
@@ -47,12 +47,12 @@ public class Main {
     private static Map<String,String> getFormData() {
         Map<String, String> formData = new HashMap<>();
         switch (SERVICE_TYPE) {
-            case WNIOSEK_O_LEGALIZACJĘ_POBYTU:
+            case REQUEST_FOR_LEGALIZATION_OF_RESIDENCE:
                 // TODO Add dorm data for application
                 break;
-            case ODDZIAŁ_LP_I_DNI_REZERWACJI:
-            case ODDZIAŁ_LP_II_DNI_REZERWACJI:
-            case DYREKTOR_WYDZIAŁU_REZERWACJE:
+            case LP_I_DEPARTMENT:
+            case LP_II_DEPARTMENT:
+            case HEAD_OF_DEPARTMENT:
                 formData.put("nazwisko i imię", NAME_AND_SURNAME);
                 formData.put("data urodzenia/Date of birth", DATE_OF_BIRTH);
                 formData.put("NUMER TELEFONU KONTAKTOWEGO", PHONE_NUMBER);
