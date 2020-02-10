@@ -1,35 +1,70 @@
 import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.logging.LogEntries;
 import org.openqa.selenium.logging.LogEntry;
-import org.openqa.selenium.support.ui.ExpectedCondition;
+import org.openqa.selenium.logging.LogType;
+import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class Main {
 
     private static final String LOGIN = "aldomozhirov@gmail.com";
-    private static final String PASSWORD = "VrvCIDO#";
+    private static final String PASSWORD = "";
     private static final String LOCATION = "Wrocław";
     private static final String DATE_TO_BOOK = "2020-03-30";
     private static final ServiceType SERVICE_TYPE = ServiceType.WNIOSEK_O_LEGALIZACJĘ_POBYTU;
+    private static final String NAME_AND_SURNAME = "Alena Domozhirova";
+    private static final String DATE_OF_BIRTH = "1996-01-22";
+    private static final String PHONE_NUMBER = "888719445";
+    private static final String SUBMISSION_DATE = "2019-03-14";
+    private static final String REFERENCE_NUMBER = "32285186";
+
+    private static LoggingPreferences getLoggingPrefs() {
+        LoggingPreferences logPrefs = new LoggingPreferences();
+        logPrefs.enable(LogType.PERFORMANCE, Level.INFO);
+        logPrefs.enable(LogType.PROFILER, Level.INFO);
+        logPrefs.enable(LogType.BROWSER, Level.INFO);
+        logPrefs.enable(LogType.CLIENT, Level.INFO);
+        logPrefs.enable(LogType.DRIVER, Level.INFO);
+        logPrefs.enable(LogType.SERVER, Level.INFO);
+        return logPrefs;
+    }
+
+    private static ChromeOptions getChromeOptions() {
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--start-maximized");
+        options.setCapability("goog:loggingPrefs", getLoggingPrefs());
+        return options;
+    }
+
+    private static Map<String,String> getFormData() {
+        Map<String, String> formData = new HashMap<>();
+        formData.put("nazwisko i imię", NAME_AND_SURNAME);
+        formData.put("data urodzenia/Date of birth", DATE_OF_BIRTH);
+        formData.put("NUMER TELEFONU KONTAKTOWEGO", PHONE_NUMBER);
+        formData.put("sygnatura sprawy lub nazwisko inspektora prowadzącego postępowanie", REFERENCE_NUMBER);
+        formData.put("wpisz datę złożenia wniosku (przesłania drogą pocztową)", SUBMISSION_DATE);
+        return formData;
+    }
 
     public static void main(String[] args) throws Exception {
 
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--start-maximized");
-        options.setExperimentalOption("detach", true);
-        System.setProperty("webdriver.chrome.driver", "C:\\Users\\aldom\\Desktop\\chromedriver.exe");
-        WebDriver driver = new ChromeDriver(options);
-        Date dateToBook = Utils.getDate(DATE_TO_BOOK);
+        System.setProperty(
+                "webdriver.chrome.driver",
+                //"C:\\Users\\aldom\\Desktop\\chromedriver.exe"
+                "/home/adomozhirov/Videos/chromedriver_linux64/chromedriver"
+        );
+        WebDriver driver = new ChromeDriver(getChromeOptions());
 
         openReservationPage(driver);
 
@@ -37,32 +72,13 @@ public class Main {
 
         selectLocation(driver, LOCATION);
 
-        openTermsPageForService(driver, SERVICE_TYPE);
+        openTermsPage(driver, SERVICE_TYPE);
 
-        selectMonth(driver, Utils.getMonthNumber(dateToBook));
+        selectMonth(driver, Utils.getMonthNumber(Utils.getDate(DATE_TO_BOOK)));
 
-        while (true) {
-            List<WebElement> terms;
-            while ((terms = getTermsByDate(driver, DATE_TO_BOOK)).isEmpty()) {
-                System.out.println("No available dates");
-            }
+        book(driver, DATE_TO_BOOK);
 
-            String timeTermsString = terms.stream().map(e -> e.findElement(By.tagName("a")).getText())
-                    .collect(Collectors.joining(", "));
-            System.out.println("Available time terms: " + timeTermsString);
-
-            JavascriptExecutor js = (JavascriptExecutor) driver;
-            js.executeAsyncScript("lock", "2020-02-20 13:00:00");
-            Thread.sleep(1000);
-            List<LogEntry> logEntries = driver.manage().logs().get("browser").getAll();
-            for(LogEntry l : logEntries) {
-                System.out.println(l.getMessage());
-            }
-
-            return;
-            //terms.get(0).click();
-            //Thread.sleep(10000);
-        }
+        fillBookingForm(driver, getFormData());
 
     }
 
@@ -97,7 +113,7 @@ public class Main {
         ))));
     }
 
-    private static void openTermsPageForService(WebDriver driver, ServiceType service) {
+    private static void openTermsPage(WebDriver driver, ServiceType service) {
         String url = String.format(Constants.TERMS_PAGE_URL_TEMPLATE, service.val1, service.val2);
         driver.get(url);
     }
@@ -113,18 +129,93 @@ public class Main {
         }
     }
 
-    private static List<WebElement> getTermsByDate(WebDriver driver, String date) {
-        WebDriverWait wait = new WebDriverWait(driver, 10000);
+    private static void book(WebDriver driver, String date) throws InterruptedException {
+        boolean termLocked = false;
+        List<WebElement> terms = null;
+        while (!termLocked) {
+            // Click the date until terms will be found
+            while (terms == null || terms.isEmpty()) {
+                clickDate(driver, date);
+                terms = getAvailableTerms(driver);
+                if (terms.isEmpty()) {
+                    System.out.println("No available terms");
+                }
+            }
+            // Try to lock one of available terms
+            int termNum = 0;
+            String termString = "";
+            while (!terms.isEmpty()) {
+                // Get the list of available terms strings
+                List<String> availableTimeTermsStringsList = terms.stream()
+                        .map(e -> e.findElement(By.tagName("a")).getText())
+                        .collect(Collectors.toList());
+                System.out.println("Available terms: " + String.join(", ", availableTimeTermsStringsList));
+                // Determine which term to lock
+                if (availableTimeTermsStringsList.size() - 1 < termNum) {
+                    termNum = 0;
+                }
+                if (availableTimeTermsStringsList.size() > 1) {
+                    if (availableTimeTermsStringsList.get(termNum).equals(termString)) {
+                        termNum++;
+                        if (termNum == availableTimeTermsStringsList.size()) {
+                            termNum = 0;
+                        }
+                    }
+                }
+                // Attempt to lock the term
+                WebElement termToLock = terms.get(termNum);
+                termString = availableTimeTermsStringsList.get(termNum);
+                System.out.println("Trying to lock the term " + termString);
+                termToLock.click();
+                if (waitForLockResult(driver, 120000)) {
+                    termLocked = true;
+                    break;
+                } else {
+                    System.out.println("Failed to lock the term " + termString);
+                    terms = getAvailableTerms(driver);
+                }
+            }
+        }
+    }
+
+    private static void fillBookingForm(WebDriver driver, Map<String, String> formData) {
+        for (Map.Entry<String, String> entry : formData.entrySet()) {
+            try {
+                WebElement element = driver.findElement(By.name(entry.getKey()));
+                element.sendKeys(entry.getValue());
+            } catch (Exception e) {
+                System.out.println(String.format("Cannot fill the field '%s'", entry.getKey()));
+            }
+        }
+    }
+
+    private static void clickDate(WebDriver driver, String date) {
         driver.findElement(By.xpath(String.format("//td[contains(@id, '%s')]", date))).click();
+    }
+
+    private static List<WebElement> getAvailableTerms(WebDriver driver) {
+        WebDriverWait wait = new WebDriverWait(driver, 10000);
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("dateContent")));
         WebElement dateContent = driver.findElement(By.id("dateContent"));
         return dateContent.findElement(By.className("smartColumns")).findElements(By.tagName("li"));
     }
 
-    private static void waitForPageToLoad(WebDriver driver) {
-        ExpectedCondition<Boolean> pageLoadCondition = driver1 -> ((JavascriptExecutor) driver1).executeScript("return document.readyState").equals("complete");
-        WebDriverWait wait = new WebDriverWait(driver, 30);
-        wait.until(pageLoadCondition);
+    private static boolean waitForLockResult(WebDriver driver, long timeout) throws InterruptedException {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeout) {
+            LogEntries logEntries = driver.manage().logs().get(LogType.BROWSER);
+            for (LogEntry entry : logEntries) {
+                String message = entry.getMessage();
+                if (message.contains("OK")) {
+                    return true;
+                } else if (message.contains("FAIL")) {
+                    return false;
+                }
+                Thread.sleep(100);
+            }
+        }
+        return false;
     }
+
 
 }
