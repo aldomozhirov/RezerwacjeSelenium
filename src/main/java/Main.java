@@ -32,11 +32,8 @@ public class Main {
     private static LoggingPreferences getLoggingPrefs() {
         LoggingPreferences logPrefs = new LoggingPreferences();
         logPrefs.enable(LogType.PERFORMANCE, Level.INFO);
-        logPrefs.enable(LogType.PROFILER, Level.INFO);
         logPrefs.enable(LogType.BROWSER, Level.INFO);
-        logPrefs.enable(LogType.CLIENT, Level.INFO);
         logPrefs.enable(LogType.DRIVER, Level.INFO);
-        logPrefs.enable(LogType.SERVER, Level.INFO);
         return logPrefs;
     }
 
