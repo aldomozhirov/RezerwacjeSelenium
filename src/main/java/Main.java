@@ -18,16 +18,17 @@ import java.util.stream.Collectors;
 
 public class Main {
 
-    private static final String LOGIN = "aldomozhirov@gmail.com";
+    private static final String LOGIN = "alenabaranova948@gmail.com";
     private static final String PASSWORD = "";
     private static final String LOCATION = "Wrocław";
-    private static final String DATE_TO_BOOK = "2020-03-31";
-    private static final ServiceType SERVICE_TYPE = ServiceType.REQUEST_FOR_LEGALIZATION_OF_RESIDENCE;
-    private static final String NAME_AND_SURNAME = "Aleksei Domozhirov";
-    private static final String DATE_OF_BIRTH = "1996-02-22";
-    private static final String PHONE_NUMBER = "728159050";
+    private static final String DATE_TO_BOOK = "2020-02-25";
+    private static final ServiceType SERVICE_TYPE = ServiceType.LP_I_DEPARTMENT;
+    private static final String NAME_AND_SURNAME = "Alena Domozhirova";
+    private static final String DATE_OF_BIRTH = "1996-01-22";
+    private static final String PHONE_NUMBER = "888719445";
     private static final String SUBMISSION_DATE = "2019-03-14";
     private static final String REFERENCE_NUMBER = "32285186";
+    private static final String CHROMEDRIVER_PATH = "/Users/alena/Documents/chromedriver";
 
     private static LoggingPreferences getLoggingPrefs() {
         LoggingPreferences logPrefs = new LoggingPreferences();
@@ -65,11 +66,8 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-        System.setProperty(
-                "webdriver.chrome.driver",
-                //"C:\\Users\\aldom\\Desktop\\chromedriver.exe"
-                "/home/adomozhirov/Videos/chromedriver_linux64/chromedriver"
-        );
+        System.setProperty("webdriver.chrome.driver", CHROMEDRIVER_PATH);
+
         WebDriver driver = new ChromeDriver(getChromeOptions());
 
         openReservationPage(driver);
