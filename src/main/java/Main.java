@@ -1,12 +1,11 @@
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.logging.LogEntries;
 import org.openqa.selenium.logging.LogEntry;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
+import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -19,7 +18,7 @@ import java.util.stream.Collectors;
 public class Main {
 
     private static final String LOGIN = "alenabaranova948@gmail.com";
-    private static final String PASSWORD = "";
+    private static final String PASSWORD = "batire22";
     private static final String LOCATION = "Wrocław";
     private static final String DATE_TO_BOOK = "2020-02-25";
     private static final ServiceType SERVICE_TYPE = ServiceType.LP_I_DEPARTMENT;
@@ -28,7 +27,7 @@ public class Main {
     private static final String PHONE_NUMBER = "888719445";
     private static final String SUBMISSION_DATE = "2019-03-14";
     private static final String REFERENCE_NUMBER = "32285186";
-    private static final String CHROMEDRIVER_PATH = "/Users/alena/Documents/chromedriver";
+    private static final String CHROMEDRIVER_PATH = "/home/adomozhirov/Videos/chromedriver_linux64/chromedriver";
 
     private static LoggingPreferences getLoggingPrefs() {
         LoggingPreferences logPrefs = new LoggingPreferences();
@@ -70,6 +69,8 @@ public class Main {
 
         WebDriver driver = new ChromeDriver(getChromeOptions());
 
+        Sounds.hello();
+
         openReservationPage(driver);
 
         login(driver, LOGIN, PASSWORD);
@@ -80,9 +81,12 @@ public class Main {
 
         selectMonth(driver, Utils.getMonthNumber(Utils.getDate(DATE_TO_BOOK)));
 
-        book(driver, DATE_TO_BOOK);
-
-        fillBookingForm(driver, getFormData());
+        if (book(driver, DATE_TO_BOOK)) {
+            fillBookingForm(driver, getFormData());
+            Sounds.successfulFinish();
+        } else {
+            Sounds.unsuccessfulFinish();
+        }
 
     }
 
@@ -133,10 +137,9 @@ public class Main {
         }
     }
 
-    private static void book(WebDriver driver, String date) throws InterruptedException {
-        boolean termLocked = false;
+    private static boolean book(WebDriver driver, String date) throws InterruptedException {
         List<WebElement> terms = null;
-        while (!termLocked) {
+        while (true) {
             // Click the date until terms will be found
             while (terms == null || terms.isEmpty()) {
                 clickDate(driver, date);
@@ -145,6 +148,8 @@ public class Main {
                     System.out.println("No available terms");
                 }
             }
+            // Notify about found terms
+            Sounds.success1();
             // Try to lock one of available terms
             int termNum = 0;
             String termString = "";
@@ -169,15 +174,30 @@ public class Main {
                 // Attempt to lock the term
                 WebElement termToLock = terms.get(termNum);
                 termString = availableTimeTermsStringsList.get(termNum);
-                System.out.println("Trying to lock the term " + termString);
+                System.out.println(String.format("Trying to lock the term %s...", termString));
                 termToLock.click();
-                if (waitForLockResult(driver, 120000)) {
-                    termLocked = true;
-                    break;
+                if (waitForLockResult(driver, 120)) {
+                    System.out.println(String.format("Term %s locked successfully! Waiting for url to be redirected to form...", termString));
+                    if (waitForUrlContains(driver, "updateFormData", 10)) {
+                        // Notify about opening the form
+                        Sounds.success2();
+                        System.out.println("Url have been redirected to the form! Loading the form...");
+                        if (waitForPageToLoad(driver, 120)) {
+                            System.out.println("Form have been loaded!");
+                            return true;
+                        } else {
+                            System.err.println("Form have not been loaded!");
+                            return false;
+                        }
+                    } else {
+                        System.err.println("Url have not been redirected to form!");
+                    }
                 } else {
-                    System.err.println("Failed to lock the term " + termString);
-                    terms = getAvailableTerms(driver);
+                    System.err.println(String.format("Failed to lock the term %s!", termString));
                 }
+                Sounds.fail();
+                System.out.println("Returning back to finding available terms...");
+                terms = getAvailableTerms(driver);
             }
         }
     }
@@ -204,9 +224,9 @@ public class Main {
         return dateContent.findElement(By.className("smartColumns")).findElements(By.tagName("li"));
     }
 
-    private static boolean waitForLockResult(WebDriver driver, long timeout) throws InterruptedException {
+    private static boolean waitForLockResult(WebDriver driver, long timeOutInSeconds) throws InterruptedException {
         long startTime = System.currentTimeMillis();
-        while (System.currentTimeMillis() - startTime < timeout) {
+        while (System.currentTimeMillis() - startTime < timeOutInSeconds * 1000) {
             LogEntries logEntries = driver.manage().logs().get(LogType.BROWSER);
             for (LogEntry entry : logEntries) {
                 String message = entry.getMessage();
@@ -221,5 +241,28 @@ public class Main {
         return false;
     }
 
+    private static boolean waitForUrlContains(WebDriver driver, String str, int timeOutInSeconds){
+        WebDriverWait wait = new WebDriverWait(driver, timeOutInSeconds);
+        ExpectedCondition<Boolean> urlContainsCondition = ExpectedConditions.urlContains(str);
+        try {
+            wait.until(urlContainsCondition);
+        } catch (TimeoutException e) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean waitForPageToLoad(WebDriver driver, int timeOutInSeconds) {
+        WebDriverWait wait = new WebDriverWait(driver, timeOutInSeconds);
+        ExpectedCondition<Boolean> pageLoadCondition = driver1 -> ((JavascriptExecutor) driver1)
+                .executeScript("return document.readyState")
+                .equals("complete");
+        try {
+            wait.until(pageLoadCondition);
+        } catch (TimeoutException e) {
+            return false;
+        }
+        return true;
+    }
 
 }
