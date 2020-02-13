@@ -1,8 +1,6 @@
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.logging.LogEntries;
 import org.openqa.selenium.logging.LogEntry;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
@@ -20,8 +18,8 @@ public class Main {
     private static final String LOGIN = "alenabaranova948@gmail.com";
     private static final String PASSWORD = "batire22";
     private static final String LOCATION = "Wrocław";
-    private static final String DATE_TO_BOOK = "2020-02-19";
-    private static final ServiceType SERVICE_TYPE = ServiceType.HEAD_OF_DEPARTMENT;
+    private static final String DATE_TO_BOOK = "2020-02-27";
+    private static final ServiceType SERVICE_TYPE = ServiceType.LP_I_DEPARTMENT;
     private static final String NAME_AND_SURNAME = "Alena Domozhirova";
     private static final String DATE_OF_BIRTH = "1996-01-22";
     private static final String PHONE_NUMBER = "888719445";
@@ -66,7 +64,6 @@ public class Main {
     public static void main(String[] args) throws Exception {
 
         System.setProperty("webdriver.chrome.driver", CHROMEDRIVER_PATH);
-
         WebDriver driver = new ChromeDriver(getChromeOptions());
 
         Sounds.hello();
@@ -77,11 +74,21 @@ public class Main {
 
         selectLocation(driver, LOCATION);
 
-        openTermsPage(driver, SERVICE_TYPE);
-
-        selectMonth(driver, Utils.getMonthNumber(Utils.getDate(DATE_TO_BOOK)));
-
-        if (book(driver, DATE_TO_BOOK)) {
+        boolean isBookingFormOpened;
+        while (true) {
+            try {
+                openTermsPage(driver, SERVICE_TYPE);
+                if (driver.getTitle().contains("Zaloguj")) {
+                    login(driver, LOGIN, PASSWORD);
+                }
+                selectMonth(driver, Utils.getMonthNumber(Utils.getDate(DATE_TO_BOOK)));
+                isBookingFormOpened = book(driver, DATE_TO_BOOK);
+                break;
+            } catch (Exception e) {
+                System.err.println("Something went wrong! Need to reload terms page");
+            }
+        }
+        if (isBookingFormOpened) {
             fillBookingForm(driver, getFormData());
             Sounds.successfulFinish();
         } else {
@@ -143,7 +150,7 @@ public class Main {
             // Click the date until terms will be found
             while (terms == null || terms.isEmpty()) {
                 clickDate(driver, date);
-                if (waitForDateContentToLoadSuccessfully(driver, 10)) {
+                if (waitForDateContentToLoadSuccessfully(driver, 20)) {
                     terms = getAvailableTerms(driver);
                     if (terms.isEmpty()) {
                         System.out.println("No available terms");
@@ -220,8 +227,9 @@ public class Main {
         }
     }
 
-    private static void clickDate(WebDriver driver, String date) {
+    private static void clickDate(WebDriver driver, String date) throws InterruptedException {
         driver.findElement(By.xpath(String.format("//td[contains(@id, '%s')]", date))).click();
+        Thread.sleep(100);
     }
 
     private static List<WebElement> getAvailableTerms(WebDriver driver) {
@@ -242,15 +250,15 @@ public class Main {
                     get(LogType.BROWSER).getAll().stream().
                     anyMatch(logEntry -> logEntry.getLevel().equals(Level.SEVERE));
             if (isAnyError) {
-                return false;
+                throw new RuntimeException();
             } else {
-                return null;
+                return false;
             }
         };
         WebDriverWait wait = new WebDriverWait(driver, timeOutInSeconds);
         try {
             return wait.until(ExpectedConditions.or(isVisible, isConsoleError));
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             return false;
         }
     }
@@ -293,9 +301,12 @@ public class Main {
 
     private static boolean waitForPageToLoad(WebDriver driver, int timeOutInSeconds) {
         WebDriverWait wait = new WebDriverWait(driver, timeOutInSeconds);
-        ExpectedCondition<Boolean> pageLoadCondition = driver1 -> ((JavascriptExecutor) driver1)
-                .executeScript("return document.readyState")
-                .equals("complete");
+        ExpectedCondition<Boolean> pageLoadCondition = driver1 -> {
+            assert driver1 != null;
+            return ((JavascriptExecutor) driver1)
+                    .executeScript("return document.readyState")
+                    .equals("complete");
+        };
         try {
             return wait.until(pageLoadCondition);
         } catch (TimeoutException e) {
