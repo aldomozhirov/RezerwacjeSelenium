@@ -9,9 +9,7 @@ import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -20,8 +18,8 @@ public class Main {
     private static final String LOGIN = "alenabaranova948@gmail.com";
     private static final String PASSWORD = "batire22";
     private static final String LOCATION = "Wrocław";
-    private static final String DATE_TO_BOOK = "2020-02-25";
-    private static final ServiceType SERVICE_TYPE = ServiceType.LP_I_DEPARTMENT;
+    private static final String DATE_TO_BOOK = "2020-02-19";
+    private static final ServiceType SERVICE_TYPE = ServiceType.HEAD_OF_DEPARTMENT;
     private static final String NAME_AND_SURNAME = "Alena Domozhirova";
     private static final String DATE_OF_BIRTH = "1996-01-22";
     private static final String PHONE_NUMBER = "888719445";
@@ -143,9 +141,15 @@ public class Main {
             // Click the date until terms will be found
             while (terms == null || terms.isEmpty()) {
                 clickDate(driver, date);
-                terms = getAvailableTerms(driver);
-                if (terms.isEmpty()) {
-                    System.out.println("No available terms");
+                WebElement dateContent;
+                if ((dateContent = waitForDateContentToLoad(driver, 60)) != null) {
+                    terms = getAvailableTerms(driver, dateContent);
+                    if (terms.isEmpty()) {
+                        System.out.println("No available terms");
+                    }
+                } else {
+                    Sounds.fail();
+                    System.err.println("Error while loading date content!");
                 }
             }
             // Notify about found terms
@@ -197,7 +201,12 @@ public class Main {
                 }
                 Sounds.fail();
                 System.out.println("Returning back to finding available terms...");
-                terms = getAvailableTerms(driver);
+                WebElement dateContent = driver.findElement(By.id("dateContent"));
+                if (dateContent != null) {
+                    terms = getAvailableTerms(driver, dateContent);
+                } else {
+                    terms = Collections.emptyList();
+                }
             }
         }
     }
@@ -217,11 +226,28 @@ public class Main {
         driver.findElement(By.xpath(String.format("//td[contains(@id, '%s')]", date))).click();
     }
 
-    private static List<WebElement> getAvailableTerms(WebDriver driver) {
-        WebDriverWait wait = new WebDriverWait(driver, 10000);
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("dateContent")));
-        WebElement dateContent = driver.findElement(By.id("dateContent"));
+    private static List<WebElement> getAvailableTerms(WebDriver driver, WebElement dateContent) {
         return dateContent.findElement(By.className("smartColumns")).findElements(By.tagName("li"));
+    }
+
+    private static WebElement waitForDateContentToLoad(WebDriver driver, long timeOutInSeconds) throws InterruptedException {
+        long startTime = System.currentTimeMillis();
+        ExpectedCondition<WebElement> isVisible =
+                ExpectedConditions.visibilityOfElementLocated(By.id("dateContent"));
+        while (System.currentTimeMillis() - startTime < timeOutInSeconds * 1000) {
+            WebElement element = isVisible.apply(driver);
+            if (element != null) {
+                return element;
+            }
+            LogEntries logEntries = driver.manage().logs().get(LogType.BROWSER);
+            for (LogEntry entry : logEntries) {
+                if (entry.getLevel().equals(Level.SEVERE)) {
+                    return null;
+                }
+            }
+            Thread.sleep(100);
+        }
+        return null;
     }
 
     private static boolean waitForLockResult(WebDriver driver, long timeOutInSeconds) throws InterruptedException {
@@ -235,8 +261,8 @@ public class Main {
                 } else if (message.contains("FAIL")) {
                     return false;
                 }
-                Thread.sleep(100);
             }
+            Thread.sleep(100);
         }
         return false;
     }
