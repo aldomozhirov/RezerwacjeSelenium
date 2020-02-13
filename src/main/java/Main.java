@@ -1,3 +1,4 @@
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -9,6 +10,7 @@ import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
@@ -42,7 +44,7 @@ public class Main {
         return options;
     }
 
-    private static Map<String,String> getFormData() {
+    private static Map<String, String> getFormData() {
         Map<String, String> formData = new HashMap<>();
         switch (SERVICE_TYPE) {
             case REQUEST_FOR_LEGALIZATION_OF_RESIDENCE:
@@ -56,7 +58,7 @@ public class Main {
                 formData.put("NUMER TELEFONU KONTAKTOWEGO", PHONE_NUMBER);
                 formData.put("sygnatura sprawy lub nazwisko inspektora prowadzącego postępowanie", REFERENCE_NUMBER);
                 formData.put("wpisz datę złożenia wniosku (przesłania drogą pocztową)", SUBMISSION_DATE);
-            break;
+                break;
         }
         return formData;
     }
@@ -141,9 +143,8 @@ public class Main {
             // Click the date until terms will be found
             while (terms == null || terms.isEmpty()) {
                 clickDate(driver, date);
-                WebElement dateContent;
-                if ((dateContent = waitForDateContentToLoad(driver, 60)) != null) {
-                    terms = getAvailableTerms(driver, dateContent);
+                if (waitForDateContentToLoadSuccessfully(driver, 10)) {
+                    terms = getAvailableTerms(driver);
                     if (terms.isEmpty()) {
                         System.out.println("No available terms");
                     }
@@ -158,55 +159,52 @@ public class Main {
             int termNum = 0;
             String termString = "";
             while (!terms.isEmpty()) {
-                // Get the list of available terms strings
-                List<String> availableTimeTermsStringsList = terms.stream()
-                        .map(e -> e.findElement(By.tagName("a")).getText())
-                        .collect(Collectors.toList());
-                System.out.println("Available terms: " + String.join(", ", availableTimeTermsStringsList));
-                // Determine which term to lock
-                if (availableTimeTermsStringsList.size() - 1 < termNum) {
-                    termNum = 0;
-                }
-                if (availableTimeTermsStringsList.size() > 1) {
-                    if (availableTimeTermsStringsList.get(termNum).equals(termString)) {
-                        termNum++;
-                        if (termNum == availableTimeTermsStringsList.size()) {
-                            termNum = 0;
+                try {
+                    // Get the list of available terms strings
+                    List<String> availableTimeTermsStringsList = terms.stream()
+                            .map(e -> e.findElement(By.tagName("a")).getText()).collect(Collectors.toList());
+                    availableTimeTermsStringsList.removeAll(Collections.singletonList(null));
+                    System.out.println("Available terms: " + String.join(", ", availableTimeTermsStringsList));
+                    // Determine which term to lock
+                    if (availableTimeTermsStringsList.size() - 1 < termNum) {
+                        termNum = 0;
+                    }
+                    if (availableTimeTermsStringsList.size() > 1) {
+                        if (availableTimeTermsStringsList.get(termNum).equals(termString)) {
+                            termNum++;
+                            if (termNum == availableTimeTermsStringsList.size()) {
+                                termNum = 0;
+                            }
                         }
                     }
-                }
-                // Attempt to lock the term
-                WebElement termToLock = terms.get(termNum);
-                termString = availableTimeTermsStringsList.get(termNum);
-                System.out.println(String.format("Trying to lock the term %s...", termString));
-                termToLock.click();
-                if (waitForLockResult(driver, 120)) {
-                    System.out.println(String.format("Term %s locked successfully! Waiting for url to be redirected to form...", termString));
-                    if (waitForUrlContains(driver, "updateFormData", 10)) {
-                        // Notify about opening the form
-                        Sounds.success2();
-                        System.out.println("Url have been redirected to the form! Loading the form...");
-                        if (waitForPageToLoad(driver, 120)) {
-                            System.out.println("Form have been loaded!");
-                            return true;
+                    // Attempt to lock the term
+                    WebElement termToLock = terms.get(termNum);
+                    termString = availableTimeTermsStringsList.get(termNum);
+                    System.out.println(String.format("Trying to lock the term %s...", termString));
+                    termToLock.click();
+                    if (waitForLockResult(driver, 20)) {
+                        System.out.println(String.format("Term %s locked successfully! Waiting for url to be redirected to form...", termString));
+                        if (waitForUrlContains(driver, "updateFormData", 10)) {
+                            // Notify about opening the form
+                            Sounds.success2();
+                            System.out.println("Url have been redirected to the form! Loading the form...");
+                            if (waitForPageToLoad(driver, 60)) {
+                                System.out.println("Form have been loaded!");
+                                return true;
+                            } else {
+                                System.err.println("Form have not been loaded!");
+                                return false;
+                            }
                         } else {
-                            System.err.println("Form have not been loaded!");
-                            return false;
+                            System.err.println("Url have not been redirected to form!");
                         }
                     } else {
-                        System.err.println("Url have not been redirected to form!");
+                        System.err.println(String.format("Failed to lock the term %s!", termString));
                     }
-                } else {
-                    System.err.println(String.format("Failed to lock the term %s!", termString));
-                }
-                Sounds.fail();
-                System.out.println("Returning back to finding available terms...");
-                WebElement dateContent = driver.findElement(By.id("dateContent"));
-                if (dateContent != null) {
-                    terms = getAvailableTerms(driver, dateContent);
-                } else {
-                    terms = Collections.emptyList();
-                }
+                    Sounds.fail();
+                    System.out.println("Returning back to finding available terms...");
+                } catch (Exception e) {}
+                terms = getAvailableTerms(driver);
             }
         }
     }
@@ -226,56 +224,71 @@ public class Main {
         driver.findElement(By.xpath(String.format("//td[contains(@id, '%s')]", date))).click();
     }
 
-    private static List<WebElement> getAvailableTerms(WebDriver driver, WebElement dateContent) {
-        return dateContent.findElement(By.className("smartColumns")).findElements(By.tagName("li"));
-    }
-
-    private static WebElement waitForDateContentToLoad(WebDriver driver, long timeOutInSeconds) throws InterruptedException {
-        long startTime = System.currentTimeMillis();
-        ExpectedCondition<WebElement> isVisible =
-                ExpectedConditions.visibilityOfElementLocated(By.id("dateContent"));
-        while (System.currentTimeMillis() - startTime < timeOutInSeconds * 1000) {
-            WebElement element = isVisible.apply(driver);
-            if (element != null) {
-                return element;
-            }
-            LogEntries logEntries = driver.manage().logs().get(LogType.BROWSER);
-            for (LogEntry entry : logEntries) {
-                if (entry.getLevel().equals(Level.SEVERE)) {
-                    return null;
-                }
-            }
-            Thread.sleep(100);
-        }
-        return null;
-    }
-
-    private static boolean waitForLockResult(WebDriver driver, long timeOutInSeconds) throws InterruptedException {
-        long startTime = System.currentTimeMillis();
-        while (System.currentTimeMillis() - startTime < timeOutInSeconds * 1000) {
-            LogEntries logEntries = driver.manage().logs().get(LogType.BROWSER);
-            for (LogEntry entry : logEntries) {
-                String message = entry.getMessage();
-                if (message.contains("OK")) {
-                    return true;
-                } else if (message.contains("FAIL")) {
-                    return false;
-                }
-            }
-            Thread.sleep(100);
-        }
-        return false;
-    }
-
-    private static boolean waitForUrlContains(WebDriver driver, String str, int timeOutInSeconds){
-        WebDriverWait wait = new WebDriverWait(driver, timeOutInSeconds);
-        ExpectedCondition<Boolean> urlContainsCondition = ExpectedConditions.urlContains(str);
+    private static List<WebElement> getAvailableTerms(WebDriver driver) {
         try {
-            wait.until(urlContainsCondition);
+            return driver.findElement(By.id("dateContent"))
+                    .findElement(By.className("smartColumns"))
+                    .findElements(By.tagName("li"));
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
+
+    private static boolean waitForDateContentToLoadSuccessfully(WebDriver driver, long timeOutInSeconds) {
+        ExpectedCondition<WebElement> isVisible = ExpectedConditions.visibilityOfElementLocated(By.id("dateContent"));
+        ExpectedCondition<Boolean> isConsoleError = driver1 -> {
+            assert driver1 != null;
+            boolean isAnyError = driver1.manage().logs().
+                    get(LogType.BROWSER).getAll().stream().
+                    anyMatch(logEntry -> logEntry.getLevel().equals(Level.SEVERE));
+            if (isAnyError) {
+                return false;
+            } else {
+                return null;
+            }
+        };
+        WebDriverWait wait = new WebDriverWait(driver, timeOutInSeconds);
+        try {
+            return wait.until(ExpectedConditions.or(isVisible, isConsoleError));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean waitForLockResult(WebDriver driver, long timeOutInSeconds) {
+        ExpectedCondition<String> lockHasResult = new ExpectedCondition<String>() {
+            @Nullable
+            @Override
+            public String apply(@Nullable WebDriver driver) {
+                assert driver != null;
+                List<String> list = driver.manage().logs().get(LogType.BROWSER)
+                        .getAll().stream()
+                        .map(LogEntry::getMessage)
+                        .filter(message -> message.contains("OK") || message.contains("FAIL"))
+                        .collect(Collectors.toList());
+                if (list.isEmpty()) {
+                    return null;
+                } else {
+                    return list.get(list.size() - 1);
+                }
+            }
+        };
+        WebDriverWait wait = new WebDriverWait(driver, timeOutInSeconds);
+        try {
+            return wait.until(lockHasResult).contains("OK");
         } catch (TimeoutException e) {
             return false;
         }
-        return true;
+    }
+
+    private static boolean waitForUrlContains(WebDriver driver, String str, int timeOutInSeconds) {
+        WebDriverWait wait = new WebDriverWait(driver, timeOutInSeconds);
+        ExpectedCondition<Boolean> urlContainsCondition = ExpectedConditions.urlContains(str);
+        try {
+            return wait.until(urlContainsCondition);
+        } catch (TimeoutException e) {
+            return false;
+        }
     }
 
     private static boolean waitForPageToLoad(WebDriver driver, int timeOutInSeconds) {
@@ -284,11 +297,10 @@ public class Main {
                 .executeScript("return document.readyState")
                 .equals("complete");
         try {
-            wait.until(pageLoadCondition);
+            return wait.until(pageLoadCondition);
         } catch (TimeoutException e) {
             return false;
         }
-        return true;
     }
 
 }
