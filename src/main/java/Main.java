@@ -95,6 +95,7 @@ public class Main {
         } else {
             Sounds.unsuccessfulFinish();
         }
+
     }
 
     private static void openReservationPage(WebDriver driver) {
@@ -150,7 +151,7 @@ public class Main {
             // Click the date until terms will be found
             while (terms == null || terms.isEmpty()) {
                 clickDate(driver, date);
-                if (waitForDateContentToLoadSuccessfully(driver, 20)) {
+                if (waitForDateContentToLoadSuccessfully(driver, 60)) {
                     terms = getAvailableTerms(driver);
                     if (terms.isEmpty()) {
                         System.out.println("No available terms");
@@ -189,13 +190,13 @@ public class Main {
                     termString = availableTimeTermsStringsList.get(termNum);
                     System.out.println(String.format("Trying to lock the term %s...", termString));
                     termToLock.click();
-                    if (waitForLockResult(driver, 120)) {
+                    if (waitForLockResult(driver, 300)) {
                         System.out.println(String.format("Term %s locked successfully! Waiting for url to be redirected to form...", termString));
-                        if (waitForUrlContains(driver, "updateFormData", 30)) {
+                        if (waitForUrlContains(driver, "updateFormData", 300)) {
                             // Notify about opening the form
                             Sounds.success2();
                             System.out.println("Url have been redirected to the form! Loading the form...");
-                            if (waitForPageToLoad(driver, 120)) {
+                            if (waitForPageToLoad(driver, 300)) {
                                 System.out.println("Form have been loaded!");
                                 return true;
                             } else {
