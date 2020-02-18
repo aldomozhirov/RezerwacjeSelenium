@@ -18,7 +18,7 @@ public class Main {
     private static final String LOGIN = "alenabaranova948@gmail.com";
     private static final String PASSWORD = "batire22";
     private static final String LOCATION = "Wrocław";
-    private static final String DATE_TO_BOOK = "2020-02-27";
+    private static final String DATE_TO_BOOK = "2020-03-03";
     private static final ServiceType SERVICE_TYPE = ServiceType.LP_I_DEPARTMENT;
     private static final String NAME_AND_SURNAME = "Alena Domozhirova";
     private static final String DATE_OF_BIRTH = "1996-01-22";
@@ -68,11 +68,16 @@ public class Main {
 
         Sounds.hello();
 
-        openReservationPage(driver);
-
-        login(driver, LOGIN, PASSWORD);
-
-        selectLocation(driver, LOCATION);
+        while (true) {
+            try {
+                openReservationPage(driver);
+                login(driver, LOGIN, PASSWORD);
+                selectLocation(driver, LOCATION);
+                break;
+            } catch (Exception e) {
+                System.err.println("Something went wrong! Need to reload login page");
+            }
+        }
 
         boolean isBookingFormOpened;
         while (true) {
