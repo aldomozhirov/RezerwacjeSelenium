@@ -51,11 +51,11 @@ public class Main {
             case LP_I_DEPARTMENT:
             case LP_II_DEPARTMENT:
             case HEAD_OF_DEPARTMENT:
-                formData.put("nazwisko i imię", NAME_AND_SURNAME);
-                formData.put("data urodzenia/Date of birth", DATE_OF_BIRTH);
-                formData.put("NUMER TELEFONU KONTAKTOWEGO", PHONE_NUMBER);
-                formData.put("sygnatura sprawy lub nazwisko inspektora prowadzącego postępowanie", REFERENCE_NUMBER);
-                formData.put("wpisz datę złożenia wniosku (przesłania drogą pocztową)", SUBMISSION_DATE);
+                formData.put("para_0", PHONE_NUMBER);
+                formData.put("para_1", NAME_AND_SURNAME);
+                formData.put("para_2", DATE_OF_BIRTH);
+                formData.put("para_3", REFERENCE_NUMBER);
+                formData.put("para_4", SUBMISSION_DATE);
                 break;
         }
         return formData;
@@ -90,11 +90,11 @@ public class Main {
         }
         if (isBookingFormOpened) {
             fillBookingForm(driver, getFormData());
+            submitAndConfirmBookingForm(driver);
             Sounds.successfulFinish();
         } else {
             Sounds.unsuccessfulFinish();
         }
-
     }
 
     private static void openReservationPage(WebDriver driver) {
@@ -189,13 +189,13 @@ public class Main {
                     termString = availableTimeTermsStringsList.get(termNum);
                     System.out.println(String.format("Trying to lock the term %s...", termString));
                     termToLock.click();
-                    if (waitForLockResult(driver, 20)) {
+                    if (waitForLockResult(driver, 120)) {
                         System.out.println(String.format("Term %s locked successfully! Waiting for url to be redirected to form...", termString));
-                        if (waitForUrlContains(driver, "updateFormData", 10)) {
+                        if (waitForUrlContains(driver, "updateFormData", 30)) {
                             // Notify about opening the form
                             Sounds.success2();
                             System.out.println("Url have been redirected to the form! Loading the form...");
-                            if (waitForPageToLoad(driver, 60)) {
+                            if (waitForPageToLoad(driver, 120)) {
                                 System.out.println("Form have been loaded!");
                                 return true;
                             } else {
@@ -216,15 +216,31 @@ public class Main {
         }
     }
 
-    private static void fillBookingForm(WebDriver driver, Map<String, String> formData) {
+    private static void fillBookingForm(WebDriver driver, Map<String, String> formData) throws InterruptedException {
         for (Map.Entry<String, String> entry : formData.entrySet()) {
             try {
-                WebElement element = driver.findElement(By.name(entry.getKey()));
+                WebElement element = driver.findElement(
+                        By.xpath(String.format("//textarea[contains(@name, '%s')]", entry.getKey()))
+                );
                 element.sendKeys(entry.getValue());
             } catch (Exception e) {
                 System.err.println(String.format("Cannot fill the field '%s'", entry.getKey()));
             }
         }
+        passCaptcha(driver);
+    }
+
+    private static void submitAndConfirmBookingForm(WebDriver driver) {
+        driver.findElement(By.id("submit")).submit();
+        WebDriverWait wait = new WebDriverWait(driver, 10000);
+        WebElement confirmLink = driver.findElement(By.id("confirmLink"));
+        wait.until(ExpectedConditions.attributeContains(confirmLink, "href", "reservations"));
+        confirmLink.click();
+    }
+
+    private static void passCaptcha(WebDriver driver) throws InterruptedException {
+        driver.findElement(By.xpath("//iframe")).click();
+        Thread.sleep(10000);
     }
 
     private static void clickDate(WebDriver driver, String date) throws InterruptedException {
@@ -271,8 +287,11 @@ public class Main {
                 assert driver != null;
                 List<String> list = driver.manage().logs().get(LogType.BROWSER)
                         .getAll().stream()
+                        .filter(entry -> entry.getMessage().contains("OK") ||
+                                entry.getMessage().contains("FAIL") ||
+                                entry.getLevel().equals(Level.SEVERE)
+                        )
                         .map(LogEntry::getMessage)
-                        .filter(message -> message.contains("OK") || message.contains("FAIL"))
                         .collect(Collectors.toList());
                 if (list.isEmpty()) {
                     return null;
